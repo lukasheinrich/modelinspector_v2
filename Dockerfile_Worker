@@ -1,0 +1,9 @@
+FROM lukasheinrich/cern-root
+RUN apt-get update
+RUN apt-get install -y wget
+RUN wget https://bootstrap.pypa.io/get-pip.py
+RUN python get-pip.py
+RUN pip install flask
+ADD . /modelinspector
+WORKDIR /modelinspector
+RUN pip install -r requirements.txt

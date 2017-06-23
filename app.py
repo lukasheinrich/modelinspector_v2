@@ -1,14 +1,16 @@
 from gevent import monkey
 monkey.patch_all()
 
+import os
 import json
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
-from tasks import ws_task, red
+from tasks import ws_task, red, red_conn_str
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, message_queue ='redis://')
+
+socketio = SocketIO(app, message_queue = red_conn_str)
 
 @app.route('/')
 def home():
@@ -62,4 +64,4 @@ def test_disconnect():
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, host = '0.0.0.0')

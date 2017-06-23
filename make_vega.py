@@ -81,14 +81,14 @@ marks = [{
 ]
 
 def histo2bar(histo):
-    data = np.array([(histo.GetBinCenter(i),histo.GetBinContent(i),histo.GetBinWidth(i)) for i in range(1,histo.GetNbinsX())])
+    data = np.array([(histo.GetBinCenter(i),histo.GetBinContent(i),histo.GetBinWidth(i)) for i in range(1,1+histo.GetNbinsX())])
     return data
 
 def histo2scatter(histo):
-    data = np.array([(histo.GetBinCenter(i),histo.GetBinContent(i)) for i in range(1,histo.GetNbinsX())])
+    data = np.array([(histo.GetBinCenter(i),histo.GetBinContent(i)) for i in range(1,1+histo.GetNbinsX())])
     return data
 
-def extract_for_vega(ws,parvalues):
+def extract_for_vega(ws,channel,parvalues):
 
 
     last_data_mc = {}
@@ -96,15 +96,12 @@ def extract_for_vega(ws,parvalues):
 
     for k,v in parvalues.iteritems():
         ws.var(k).setVal(v)
-    hdata = hftools.utils.extract_data(ws,'channel1','x')
-    hsignal = hftools.utils.extract(ws,'channel1','x','signal')
-    hbackground1 = hftools.utils.extract(ws,'channel1','x','background1')
-    hbackground2 = hftools.utils.extract(ws,'channel1','x','background2')
-    
-    mcnames = ['background2','background1','signal']
-    mchistos, data = [hbackground2,hbackground1,hsignal],hdata
 
-    
+
+    data = hftools.utils.extract_data(ws,channel,'x')
+    mcnames  = hftools.utils.samples(ws,channel)
+    mchistos = [hftools.utils.extract(ws,channel,'x',name) for name in mcnames]
+
     bottom = None
     for i,(mc,name) in enumerate(zip(mchistos,mcnames)):
         bardata = histo2bar(mc)
@@ -114,26 +111,29 @@ def extract_for_vega(ws,parvalues):
     scatdata = histo2scatter(data)
     last_data_data = scatdata.tolist()
     
-    hdata.Delete()
-    hsignal.Delete()
-    hbackground1.Delete()
-    hbackground2.Delete()
+    for h in [data] + mchistos:
+      h.Delete()
     return last_data_mc, last_data_data
     
 
 def get_parameters(ws, model_config = 'ModelConfig'):
     import itertools
     config = ws.obj(model_config)
-    it = config.GetNuisanceParameters().fwdIterator()
-    nuis = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
+    nuis_pars = config.GetNuisanceParameters()
+
+    if nuis_pars:
+      it = nuis_pars.fwdIterator()
+      nuis = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
+    else:
+      nuis = []
 
     it = config.GetParametersOfInterest().fwdIterator()
     pois = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
     return pois, nuis
 
 
-def make_new_vega_data(ws,pars):
-    mc_data, data_data = extract_for_vega(ws,pars)
+def make_new_vega_data(ws,channel,pars):
+    mc_data, data_data = extract_for_vega(ws,channel,pars)
 
     chained_data = list(itertools.chain(*[[dict(zip(['sample','bin_center','bin_content','bin_width'],[k]+d)) for d in v]
         for k,v in mc_data.iteritems()
@@ -167,7 +167,7 @@ def make_signals(ws):
 
 
 def make_scales(ws,channel):
-    samples = hftools.utils.samples(ws,'channel1')
+    samples = hftools.utils.samples(ws,channel)
     colors = zip(*zip(samples,itertools.cycle(["steelblue", "red", "purple"])))[1]
     return [{
         "range": "width",
@@ -194,10 +194,10 @@ def make_scales(ws,channel):
     ]
 
 
-def make_vega_spec(ws):
+def make_vega_spec(ws,channel):
     signals = make_signals(ws)
-    data    = make_new_vega_data(ws,{'mu': 1.0})
-    scales  = make_scales(ws,'channel1')
+    data    = make_new_vega_data(ws,channel,{})
+    scales  = make_scales(ws,channel)
     vega_spec = {
       "$schema": "https://vega.github.io/schema/vega/v3.0.json",
       "signals": signals,
@@ -213,13 +213,13 @@ def make_vega_spec(ws):
     return vega_spec
 
 
-
+import sys
 def main():
-    f = ROOT.TFile.Open('data/testws/results/example_combined_Meas1_model.root')
+    f = ROOT.TFile.Open(sys.argv[1])
     ws = f.Get('combined')
 
 
-    return make_vega_spec(ws)
+    return make_vega_spec(ws,'channel1')
 
 
 if __name__ == '__main__':
