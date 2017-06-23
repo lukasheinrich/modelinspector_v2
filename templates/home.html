@@ -1,0 +1,83 @@
+<html>
+<head>
+
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://vega.github.io/vega/vega-core.min.js"></script>
+
+<script type="text/javascript" src="//code.jquery.com/jquery-3.2.1.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+<script type="text/javascript" charset="utf-8">
+    var my_sid = undefined;
+    var view = undefined;
+
+
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    socket.on('connect', function() {
+        socket.emit('wstart', {data: "{{modelid}}" }, function(return_data){
+
+	    	my_sid = return_data['sid']
+	    	console.log('my sid is: ' + my_sid)
+	    	socket.emit('wsupdate', {event: 'init_vega', data: "{{modelid}}", sid: my_sid});
+
+
+        });
+    });
+
+    socket.on('wsinit', function(data){
+    	if(data['sid'] == my_sid){
+    		console.log('initing... ')
+    		console.log(data)
+    		var vega_spec = data['vega_spec']
+
+    		var parlist = $.map(vega_spec['signals'],function(x){return x.name})
+
+			view = new vega.View(vega.parse(vega_spec))
+			  .logLevel(vega.Warn) // set view logging level
+			  .initialize(document.querySelector('#view')) // set parent DOM element
+			  .renderer('svg') // set render type (defaults to 'canvas')
+			  .hover() // enable hover event processing
+
+		  	$.each(parlist,function(i,signal){
+		  		view.addSignalListener(signal, function(name, value) {
+				console.log('update ' + value)
+
+				var pardata = {};
+				$.each(parlist,function(i,d){
+					return pardata[d] = view.signal(d)
+				})
+
+				if(my_sid != undefined){
+					console.log('emitting wsupdate...')
+			    	socket.emit('wsupdate', {event: 'update_data', data: "{{modelid}}", sid: my_sid, pars: pardata});
+				}
+				else{
+					console.log('no sid!')
+				}
+
+			  })
+		  	})
+			view.run(); // update and render the view
+
+
+
+		}
+    })
+
+    socket.on('wsevent', function(data) {
+    	if(data['sid'] == my_sid){
+	    	console.log('updating data')
+			view.change('all_samples',vega.changeset().remove(view.data('all_samples'))).run()
+			view.change('all_samples',vega.changeset().insert(data['new_data'])).run()
+    	}
+    });
+
+</script>
+
+</head>
+<body>
+	<div id="view"></div>
+	<script type="text/javascript">
+	</script>
+</body>
+</html>

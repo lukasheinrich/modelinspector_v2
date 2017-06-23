@@ -1,0 +1,61 @@
+<html>
+<head>
+
+
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://vega.github.io/vega/vega-core.min.js"></script>
+
+<script type="text/javascript" src="//code.jquery.com/jquery-3.2.1.js"></script>
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.1.1/dropzone.js"></script>
+
+
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.1.1/basic.css">
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.1.1/dropzone.css">
+<script type="text/javascript" charset="utf-8">
+
+    var socket = io.connect('http://' + document.domain + ':' + location.port);
+    var next = undefined;
+    var my_sid = undefined;
+    socket.on('connect', function() {
+    });
+
+    socket.on('sid', function(data){
+        my_sid = data['data']
+        console.log('my sid is: ' + my_sid)
+    })
+
+    socket.emit('uploadstart',{hello:'world'},function(data){
+        next = data['next']
+        console.log('next is: ' + next)
+    })
+
+</script>
+
+</head>
+
+<body>
+
+
+<button id="submit-all">Submit all files</button>
+<form action="/" class="dropzone" id="my-dropzone" style="border: 1px solid black"></form>
+
+
+<script>
+Dropzone.options.myDropzone = {
+  init: function() {
+    this.on("processing", function(file) {
+        console.log(file)
+        this.options.url = "/upload_file?" + $.param({fullpath: file.fullPath, sid: my_sid})
+    });
+    this.on("queuecomplete",function(){
+        console.log('complete! moving on to ' + next)
+        window.location.href = '/' + next
+    })
+
+  }
+};
+</script>
+</body>
+</html>
