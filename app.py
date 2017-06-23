@@ -17,8 +17,7 @@ def home():
 
 @app.route('/<modelid>')
 def modelview(modelid):
-    plotdata = json.load(open('what.json'))
-    return render_template('home.html', modelid = modelid, plotdata = plotdata)
+    return render_template('home.html', modelid = modelid)
 
 
 @app.route('/<modelid>/getdata', methods = ['POST'])
