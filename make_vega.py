@@ -24,9 +24,10 @@ def make_scales(channel):
     return [{
         "range": "width",
         "type": "linear",
+        "zero": False,
         "name": "x",
         "domain": {
-          "field": "bin_center",
+          "fields": ["lo_edge","hi_edge"],
           "data": vega_mc_name(channel)
         }
       }, {
@@ -88,13 +89,13 @@ def make_marks(channel):
           "field": "y0",
           "scale": "y"
         },
-        "xc": {
-          "field": "bin_center",
+        "x": {
+          "field": "lo_edge",
           "scale": "x"
         },
-        "width": {
-          "scale": "x",
-          "field": "bin_width"
+        "x2": {
+          "field": "hi_edge",
+          "scale": "x"
         }
       }
     },
