@@ -71,8 +71,14 @@
     socket.on('wsevent', function(data) {
     	if(data['sid'] == my_sid){
 	    	console.log('updating data')
-			view.change('all_samples',vega.changeset().remove(view.data('all_samples'))).run()
-			view.change('all_samples',vega.changeset().insert(data['new_data'])).run()
+	    	console.log(data)
+			$.each(data['new_data'],function(k,v){
+				view.change(k,vega.changeset().remove(view.data(k))).run()
+				view.change(k,vega.changeset().insert(v)).run()
+			})
+
+			// view.change('all_samples',vega.changeset().remove(view.data('all_samples'))).run()
+			// view.change('all_samples',vega.changeset().insert(data['new_data'])).run()
     	}
     });
 

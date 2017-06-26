@@ -7,15 +7,16 @@ import os
 
 def callback_update_data(state,input_data,socketio):
     ws = state['ws']
-    new_data = make_vega.make_new_vega_data(ws, 'channel1', input_data['pars'])
-    emit = new_data[0]['values']
-    print 'emitting!'
-    socketio.emit('wsevent', {"sid": input_data['sid'], 'new_data':  emit} )
+    pars = input_data['pars']
+
+    new_data = make_vega.vega_data_by_channel(ws,pars)
+
+    socketio.emit('wsevent', {"sid": input_data['sid'], 'new_data': new_data} )
 
 def callback_init_vega(state,input_data,socketio):
     ws = state['ws']
     print 'emitting init state based on workspace: ', ws
-    socketio.emit('wsinit',{"sid": input_data['sid'], "vega_spec": make_vega.make_vega_spec(ws,'channel1')})
+    socketio.emit('wsinit',{"sid": input_data['sid'], "vega_spec": make_vega.make_vega_spec(ws,'channel2')})
     print 'emitted'
 
 

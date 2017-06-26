@@ -14,8 +14,60 @@ axes = [{
     "orient": "left"
 }]
 
+def vega_data_name(channel):
+    return 'obsdata_{}'.format(channel)
 
-marks = [{
+def vega_mc_name(channel):
+    return 'all_samples_{}'.format(channel)
+
+def make_scales(channel):
+    return [{
+        "range": "width",
+        "type": "linear",
+        "name": "x",
+        "domain": {
+          "field": "bin_center",
+          "data": vega_mc_name(channel)
+        }
+      }, {
+        "range": "height",
+        "type": "linear",
+        "name": "y",
+        "domain":  {
+          "field": "y",
+          "data": vega_data_name(channel)
+        }
+      }
+    ]
+
+def make_global_scales(ws):
+    samples = sum([hftools.utils.samples(ws,c) for c in get_channels(ws)],[])
+    colors = zip(*zip(samples,itertools.cycle(["red", "steelblue", "purple"])))[1]
+    return [{
+        "name": "color",
+        "type": "ordinal",
+        "domain": samples,
+        "range": colors
+      },
+    ]
+
+
+def make_group_marks(channel):
+  return {
+    "type": "group",
+    "encode": {
+      "enter": {
+        "height": {"value": 200}
+      }
+    },
+    "axes": axes,
+    "scales": make_scales(channel),
+    "marks": make_marks(channel)
+  }
+
+
+def make_marks(channel):
+  return [{
     "encode": {
         "update": {
           "fillOpacity": {"value": 1}
@@ -36,19 +88,19 @@ marks = [{
           "field": "y0",
           "scale": "y"
         },
-        "x": {
+        "xc": {
           "field": "bin_center",
           "scale": "x"
         },
         "width": {
-          "band": True,
-          "scale": "x"
+          "scale": "x",
+          "field": "bin_width"
         }
       }
     },
     "type": "rect",
     "from": {
-      "data": "all_samples"
+      "data": vega_mc_name(channel)
     }
 },{
     "encode": {
@@ -57,15 +109,9 @@ marks = [{
                 "field": "y",
                 "scale": "y"
             },
-
-
-
-
             "x": {
                 "field": "x",
                 "scale": "x",
-                "mult": 0.5,
-                "band": True
             },
             "fill": {
                 "value": "black"
@@ -75,8 +121,8 @@ marks = [{
 
     "type": "symbol",
     "from": {
-        "data": "obsdata"
-    }
+        "data": vega_data_name(channel)
+        }
 }
 ]
 
@@ -131,17 +177,25 @@ def get_parameters(ws, model_config = 'ModelConfig'):
     pois = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
     return pois, nuis
 
+def get_channels(ws):
+    ws.allVars().getSize()
+    it = ws.allVars().fwdIterator()
+    return [x.GetName().split('_')[-1] for x in list(it.next() for i in range(ws.allVars().getSize())) if  str(x.GetName()).startswith('obs_')]
 
-def make_new_vega_data(ws,channel,pars):
+def make_new_vega_data_values(ws,channel,pars):
     mc_data, data_data = extract_for_vega(ws,channel,pars)
 
     chained_data = list(itertools.chain(*[[dict(zip(['sample','bin_center','bin_content','bin_width'],[k]+d)) for d in v]
         for k,v in mc_data.iteritems()
     ]))
+    return  chained_data, [dict(zip(['x','y'],d)) for d in data_data]
 
-    newvega_data = [{
-        'name': 'all_samples',
-        'values': chained_data,
+def make_new_vega_data(ws,channel,pars):
+    mcdata, obsdata = make_new_vega_data_values(ws,channel,pars)
+
+    return [{
+        'name': vega_mc_name(channel),
+        'values': mcdata,
         'transform': [
             {
               "type": "stack",
@@ -150,11 +204,9 @@ def make_new_vega_data(ws,channel,pars):
               "field": "bin_content"
             }
         ]},{
-        'name': 'obsdata',
-        'values': [dict(zip(['x','y'],d)) for d in data_data]
+        'name': 'obsdata_{}'.format(channel),
+        'values': obsdata
     }]
-    return newvega_data
-
 
 def make_signals(ws):
     return [{
@@ -165,52 +217,36 @@ def make_signals(ws):
       for v in sum(get_parameters(ws),[])
     ]
 
-
-def make_scales(ws,channel):
-    samples = hftools.utils.samples(ws,channel)
-    colors = zip(*zip(samples,itertools.cycle(["steelblue", "red", "purple"])))[1]
-    return [{
-        "range": "width",
-        "type": "band",
-        "name": "x",
-        "domain": {
-          "field": "bin_center",
-          "data": "all_samples"
-        }
-      }, {
-        "range": "height",
-        "type": "linear",
-        "name": "y",
-        "domain":  {
-          "field": "y",
-          "data": "obsdata"
-        }
-      }, {
-        "name": "color",
-        "type": "ordinal",
-        "domain": samples,
-        "range": colors
-      },
-    ]
-
-
 def make_vega_spec(ws,channel):
+    channels = get_channels(ws)
+
+
     signals = make_signals(ws)
-    data    = make_new_vega_data(ws,channel,{})
-    scales  = make_scales(ws,channel)
+    data    = sum([make_new_vega_data(ws,c,{}) for c in channels],[])
+    scales  = make_global_scales(ws)
     vega_spec = {
       "$schema": "https://vega.github.io/schema/vega/v3.0.json",
       "signals": signals,
       "scales": scales,
-      "axes": axes,
-      "height": 400,
+      "height": 200,
+      "layout": {
+        "columns": 1
+      },
       "padding": 5,
       "width": 500,
-      "marks": marks,
+      "marks": [make_group_marks(c) for c in channels],
       "data": data
     }
 
     return vega_spec
+
+def vega_data_by_channel(ws,pars):
+    updated_data = {}
+    for c in get_channels(ws):
+        mcdata, obsdata = make_new_vega_data_values(ws,c,pars)
+        updated_data[vega_mc_name(c)]   = mcdata
+        updated_data[vega_data_name(c)] = obsdata
+    return updated_data
 
 
 import sys

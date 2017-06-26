@@ -13,4 +13,4 @@ services:
     image: lukasheinrich/modelinspector_worker
     environment:
       MODELINSPECTOR_REDIS: redis://redis
-    command: bash -c 'source /usr/local/bin/thisroot.sh && celery worker -A tasks'
+    command: bash -c 'source /usr/local/bin/thisroot.sh && celery worker -A tasks --concurrency 4'

@@ -1,0 +1,11 @@
+<!DOCTYPE Channel  SYSTEM 'HistFactorySchema.dtd'>
+
+<Channel Name="channel2" InputFile="./data/input.root" >
+    <Data HistoName="control_region_data" HistoPath=""/>
+
+    <Sample Name="background1" HistoPath="" HistoName="control_region_background1">
+        <OverallSys Name="OverallSystName1" High="1.1" Low="0.9"/>
+        <NormFactor Name="DDNormName" Val="1" High="10" Low="0"/>
+    </Sample>
+
+</Channel>

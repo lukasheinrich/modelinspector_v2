@@ -13,19 +13,9 @@ app.config['UPLOAD_FOLDER'] = 'data'
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, message_queue ='redis://')
 
-
-
-
-@app.route('/')
-def home():
-    return 'Hello World'
-
-
-@app.route('/<modelid>')
-def modelview(modelid):
-    plotdata = json.load(open('what.json'))
-    return render_template('home.html', modelid = modelid, plotdata = plotdata)
-
+@app.route('/upload')
+def upload():
+    return render_template('upload.html')
 
 def upload_key(sid):
     return 'upload:{}'.format(sid)
@@ -50,9 +40,6 @@ def test_disconnect():
     if red.exists(upload_key(request.sid)):
         red.delete(upload_key(request.sid))
 
-@app.route('/upload')
-def upload():
-    return render_template('upload.html')
 
 @app.route('/upload_file', methods = ['POST'])
 def upload_file():
