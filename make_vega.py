@@ -2,9 +2,9 @@ import hftools
 import ROOT
 import numpy as np
 import hftools.utils
-
 import json
 import itertools
+import sys
 
 axes = [{
     "scale": "x",
@@ -127,7 +127,13 @@ def make_marks(channel):
 ]
 
 def histo2bar(histo):
-    data = np.array([(histo.GetBinCenter(i),histo.GetBinContent(i),histo.GetBinWidth(i)) for i in range(1,1+histo.GetNbinsX())])
+    data = np.array([(
+      histo.GetBinCenter(i),
+      histo.GetBinContent(i),
+      histo.GetBinWidth(i),
+      histo.GetBinLowEdge(i),
+      histo.GetBinLowEdge(i) + histo.GetBinWidth(i),
+      ) for i in range(1,1+histo.GetNbinsX())])
     return data
 
 def histo2scatter(histo):
@@ -163,7 +169,6 @@ def extract_for_vega(ws,channel,parvalues):
     
 
 def get_parameters(ws, model_config = 'ModelConfig'):
-    import itertools
     config = ws.obj(model_config)
     nuis_pars = config.GetNuisanceParameters()
 
@@ -177,15 +182,18 @@ def get_parameters(ws, model_config = 'ModelConfig'):
     pois = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
     return pois, nuis
 
-def get_channels(ws):
-    ws.allVars().getSize()
-    it = ws.allVars().fwdIterator()
-    return [x.GetName().split('_')[-1] for x in list(it.next() for i in range(ws.allVars().getSize())) if  str(x.GetName()).startswith('obs_')]
+def get_channels(ws, model_config = 'ModelConfig'):
+
+    config = ws.obj(model_config)
+    it = config.GetObservables().fwdIterator()
+    obs = list(itertools.takewhile(lambda x: x, (it.next() for i in itertools.repeat(True))))
+    obs = [o.GetName().split('_')[-1] for o in obs if o.GetName().startswith('obs_x')]
+    return obs
 
 def make_new_vega_data_values(ws,channel,pars):
     mc_data, data_data = extract_for_vega(ws,channel,pars)
 
-    chained_data = list(itertools.chain(*[[dict(zip(['sample','bin_center','bin_content','bin_width'],[k]+d)) for d in v]
+    chained_data = list(itertools.chain(*[[dict(zip(['sample','bin_center','bin_content','bin_width','lo_edge','hi_edge'],[k]+d)) for d in v]
         for k,v in mc_data.iteritems()
     ]))
     return  chained_data, [dict(zip(['x','y'],d)) for d in data_data]
@@ -237,7 +245,6 @@ def make_vega_spec(ws,channel):
       "marks": [make_group_marks(c) for c in channels],
       "data": data
     }
-
     return vega_spec
 
 def vega_data_by_channel(ws,pars):
@@ -249,7 +256,6 @@ def vega_data_by_channel(ws,pars):
     return updated_data
 
 
-import sys
 def main():
     f = ROOT.TFile.Open(sys.argv[1])
     ws = f.Get('combined')
